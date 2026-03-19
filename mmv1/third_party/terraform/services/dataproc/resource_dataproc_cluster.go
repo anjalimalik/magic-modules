@@ -3011,6 +3011,22 @@ func resourceDataprocClusterUpdate(d *schema.ResourceData, meta interface{}) err
 		updMask = append(updMask, "config.lifecycle_config.auto_stop_time")
 	}
 
+	if d.HasChange("cluster_config.0.security_config.0.identity_config") {
+		cfg := d.Get("cluster_config.0.security_config.0.identity_config")
+		if cfgList, ok := cfg.([]interface{}); ok && len(cfgList) > 0 {
+			identityConfig := expandIdentityConfig(cfgList[0].(map[string]interface{}))
+			if cluster.Config.SecurityConfig != nil {
+				cluster.Config.SecurityConfig.IdentityConfig = identityConfig
+			} else {
+				cluster.Config.SecurityConfig = &dataproc.SecurityConfig{
+					IdentityConfig: identityConfig,
+				}
+			}
+		}
+
+		updMask = append(updMask, "config.security_config.identity_config.user_service_account_mapping")
+	}
+
 	if len(updMask) > 0 {
 		gracefulDecommissionTimeout := d.Get("graceful_decommission_timeout").(string)
 
