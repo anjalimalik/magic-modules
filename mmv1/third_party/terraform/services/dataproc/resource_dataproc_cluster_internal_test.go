@@ -1,6 +1,7 @@
 package dataproc
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -122,5 +123,71 @@ func TestDataprocDiffSuppress(t *testing.T) {
 		if dataprocImageVersionDiffSuppress("", tup[0], tup[1], nil) {
 			t.Errorf("expected (old: %q, new: %q) to not be suppressed", tup[0], tup[1])
 		}
+	}
+}
+
+func TestExpandIdentityConfig(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    map[string]interface{}
+		expected map[string]string
+	}{
+		{
+			name: "single mapping",
+			input: map[string]interface{}{
+				"user_service_account_mapping": map[string]interface{}{
+					"bob@company.com": "bob-sa@iam.gserviceaccount.com",
+				},
+			},
+			expected: map[string]string{
+				"bob@company.com": "bob-sa@iam.gserviceaccount.com",
+			},
+		},
+		{
+			name: "multiple mappings",
+			input: map[string]interface{}{
+				"user_service_account_mapping": map[string]interface{}{
+					"bob@company.com":   "bob-sa@iam.gserviceaccount.com",
+					"alice@company.com": "alice-sa@iam.gserviceaccount.com",
+				},
+			},
+			expected: map[string]string{
+				"bob@company.com":   "bob-sa@iam.gserviceaccount.com",
+				"alice@company.com": "alice-sa@iam.gserviceaccount.com",
+			},
+		},
+		{
+			name:     "no mapping key",
+			input:    map[string]interface{}{},
+			expected: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := expandIdentityConfig(tc.input)
+			if result == nil {
+				if tc.expected != nil {
+					t.Fatalf("expandIdentityConfig returned nil, expected %v", tc.expected)
+				}
+				return
+			}
+			if !reflect.DeepEqual(result.UserServiceAccountMapping, tc.expected) {
+				t.Errorf("expected UserServiceAccountMapping %v, got %v", tc.expected, result.UserServiceAccountMapping)
+			}
+		})
+	}
+}
+
+func TestFlattenIdentityConfig_nil(t *testing.T) {
+	t.Parallel()
+
+	result := flattenIdentityConfig(nil, nil)
+	if result != nil {
+		t.Errorf("expected nil for nil input, got %v", result)
 	}
 }
